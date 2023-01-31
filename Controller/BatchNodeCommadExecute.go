@@ -5,6 +5,7 @@ import (
 	"Funnull/Utils"
 	websocket2 "github.com/gorilla/websocket"
 	"log"
+	"net"
 	"strings"
 	"sync"
 )
@@ -15,8 +16,16 @@ func BatchNodeCommandExecute(node_name_ip string, node_user string, node_pass st
 	wg.Add(len(node_list))
 	for _, v := range node_list {
 		nodeinfo := strings.Split(v, " ")
-		node := Moduls.Nodes{nodeinfo[1], Moduls.SSHInfo{nodeinfo[1], node_user, node_pass, node_port}}
-		go Utils.RemoteConnect(node, Command, ch, &wg, ws_msg_type, ws_conn)
+		ip_addr := net.ParseIP(nodeinfo[1])
+		if ip_addr != nil {
+			node := Moduls.Nodes{nodeinfo[1], Moduls.SSHInfo{nodeinfo[1], node_user, node_pass, node_port}}
+			go Utils.RemoteConnect(node, Command, ch, &wg, ws_msg_type, ws_conn)
+		} else {
+			err := ws_conn.WriteMessage(ws_msg_type, []byte("Node_IP 格式有误，请修正后再执行。"+"\n"))
+			if err != nil {
+				log.Fatalf("error info:" + err.Error())
+			}
+		}
 	}
 	wg.Wait()
 	close(ch)
